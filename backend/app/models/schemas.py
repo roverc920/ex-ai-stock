@@ -33,15 +33,26 @@ class AnalysisResult(BaseModel):
 
 
 class StockRequest(BaseModel):
-    """Request to analyze a stock."""
-    stock_code: str = Field(..., min_length=6, max_length=6, description="6位股票代码")
+    """Request to analyze a stock - supports multi-market."""
+    stock_code: str = Field(..., min_length=1, max_length=10, description="股票代码")
 
     @field_validator('stock_code')
     @classmethod
     def validate_stock_code(cls, v: str) -> str:
         """Validate stock code format."""
-        if not v.isdigit():
-            raise ValueError('股票代码必须是6位数字')
+        v = v.strip().upper()
+        if not v:
+            raise ValueError('股票代码不能为空')
+        # Remove prefixes for validation
+        clean_code = v
+        for prefix in ['SH', 'SZ', 'HK', 'US']:
+            if clean_code.startswith(prefix):
+                clean_code = clean_code[len(prefix):]
+                break
+        if not clean_code:
+            raise ValueError('股票代码无效')
+        if not (clean_code.isdigit() or clean_code.isalpha()):
+            raise ValueError('股票代码只能包含数字或字母')
         return v
 
 

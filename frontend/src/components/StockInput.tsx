@@ -13,13 +13,25 @@ export function StockInput({ onSubmit, loading }: StockInputProps) {
     e.preventDefault();
     setError("");
 
-    // Validate stock code (6 digits)
-    if (!/^\d{6}$/.test(code)) {
-      setError("请输入6位数字股票代码");
+    // Validate stock code (support multi-market)
+    const trimmedCode = code.trim().toUpperCase();
+    if (!trimmedCode) {
+      setError("请输入股票代码");
       return;
     }
 
-    onSubmit(code);
+    // Remove prefix for validation
+    const cleanCode = trimmedCode.replace(/^(SH|SZ|HK|US)/, "");
+    if (!/^[A-Z0-9]+$/.test(cleanCode)) {
+      setError("股票代码只能包含数字或字母");
+      return;
+    }
+    if (cleanCode.length < 1 || cleanCode.length > 6) {
+      setError("股票代码长度应为 1-6 位");
+      return;
+    }
+
+    onSubmit(trimmedCode);
   };
 
   return (
@@ -29,8 +41,8 @@ export function StockInput({ onSubmit, loading }: StockInputProps) {
           type="text"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="输入股票代码，如：000001"
-          maxLength={6}
+          placeholder="600000 / usAAPL / hk00700"
+          maxLength={10}
           disabled={loading}
           className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
         />
@@ -43,6 +55,9 @@ export function StockInput({ onSubmit, loading }: StockInputProps) {
         </button>
       </div>
       {error && <p className="mt-2 text-red-600 text-sm">{error}</p>}
+      <p className="mt-2 text-gray-500 text-xs">
+        支持 A股(600000)、港股(hk00700)、美股(usAAPL)
+      </p>
     </form>
   );
 }
