@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Eye } from "lucide-react";
 import type { HistoryItem } from "../services/api";
 import { getHistory } from "../services/api";
 
@@ -21,6 +23,7 @@ const sentimentColors: Record<string, string> = {
 };
 
 export function History() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,6 +42,10 @@ export function History() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewDetail = (id: string) => {
+    navigate(`/history/${id}`);
   };
 
   if (loading) {
@@ -85,6 +92,9 @@ export function History() {
                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
                   分析时间
                 </th>
+                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -122,6 +132,16 @@ export function History() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {new Date(item.created_at).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleViewDetail(item.id)}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      title="查看详情"
+                    >
+                      <Eye size={18} />
+                      <span className="text-sm">查看</span>
+                    </button>
                   </td>
                 </tr>
               ))}
