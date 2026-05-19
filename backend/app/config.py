@@ -25,9 +25,13 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
-        # Always include localhost for development
-        if "http://localhost:5173" not in origins:
+        # Development: allow all localhost ports
+        if self.APP_ENV == "development":
             origins.append("http://localhost:5173")
+            origins.append("http://localhost:5174")
+            origins.append("http://localhost:5175")
+            origins.append("http://localhost:5176")
+            origins.append("http://localhost:3000")
         return origins
 
     class Config:

@@ -90,3 +90,16 @@ export async function getStockData(stockCode: string): Promise<{
 
   return response.json();
 }
+
+export async function getAnalysisById(id: string): Promise<StockResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/history/${id}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("分析记录不存在");
+    }
+    throw new Error("获取分析详情失败");
+  }
+
+  return response.json();
+}
