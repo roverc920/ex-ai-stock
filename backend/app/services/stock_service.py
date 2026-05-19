@@ -2,22 +2,19 @@
 import httpx
 from typing import Dict, Any
 from app.models.schemas import StockData
+from app.services.market_detector import detect_market, build_tencent_api_code, get_market_name
 
 
 class StockService:
     """Service for fetching stock data from Tencent API."""
 
-    def _get_market_prefix(self, stock_code: str) -> str:
-        """Determine market prefix based on stock code."""
-        if stock_code.startswith('6'):
-            return "sh"
-        else:
-            return "sz"
-
     async def get_stock_data(self, stock_code: str) -> Dict[str, Any]:
-        """Get real-time stock data from Tencent API."""
-        market = self._get_market_prefix(stock_code)
-        symbol = f"{market}{stock_code}"
+        """Get real-time stock data from Tencent API - supports multi-market."""
+        # Detect market type
+        market, clean_code = detect_market(stock_code)
+
+        # Build Tencent API symbol
+        symbol = build_tencent_api_code(market, clean_code)
 
         url = f"https://qt.gtimg.cn/q={symbol}"
 
@@ -86,8 +83,10 @@ class StockService:
                 )
 
                 return {
-                    "code": stock_code,
+                    "code": clean_code,
                     "name": stock_name,
+                    "market": market,
+                    "market_name": get_market_name(market),
                     "data": stock_data
                 }
 
