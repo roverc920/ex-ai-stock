@@ -226,6 +226,30 @@ services:
 
 ---
 
+### Issue 6: React Router 刷新 404 (Render 部署)
+
+**现象**: 使用 React Router 后，访问 `/history` 正常，但刷新页面或直接访问 `/history/:id` 返回 404。
+
+**原因**: Render 的 `static` runtime 默认不提供 SPA fallback，服务器尝试寻找 `/history/index.html` 文件但不存在。
+
+**错误尝试**: 使用 `_redirects` 文件在 buildCommand 中生成，但 Render static runtime 不支持。
+
+**正确解决**: 在 `render.yaml` 中使用 `routes` 配置：
+```yaml
+services:
+  - type: web
+    name: stock-analyzer-web
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+```
+
+---
+
 ## 部署指南
 
 ### 环境变量配置
