@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # App
     APP_ENV: str = "development"
     CORS_ORIGINS: str = "http://localhost:5173"
+    MOCK_STOCK_DATA: str = "false"
 
     @property
     def cors_origins_list(self) -> List[str]:

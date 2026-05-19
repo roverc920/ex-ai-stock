@@ -14,6 +14,12 @@ class CacheService:
 
     async def connect(self):
         """Connect to Redis."""
+        # Skip if no Redis URL configured
+        if not settings.REDIS_URL or settings.REDIS_URL == "redis://localhost:6379":
+            print("ℹ️ Redis not configured, running without cache")
+            self.client = None
+            return
+
         try:
             self.client = await redis.from_url(
                 settings.REDIS_URL,
