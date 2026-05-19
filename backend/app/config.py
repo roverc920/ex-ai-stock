@@ -24,7 +24,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        # Always include localhost for development
+        if "http://localhost:5173" not in origins:
+            origins.append("http://localhost:5173")
+        return origins
 
     class Config:
         env_file = ".env"
