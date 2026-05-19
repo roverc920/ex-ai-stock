@@ -27,10 +27,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware - allow all origins for deployed services
+origins = settings.cors_origins_list if settings.cors_origins_list != [""] else ["*"]
+if settings.APP_ENV == "production":
+    # In production, ensure the frontend URLs are included
+    origins = list(set(origins + [
+        "https://stock-analyzer-web.onrender.com",
+        "https://stock-analyzer-api-hr0b.onrender.com",
+    ]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=origins if origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
