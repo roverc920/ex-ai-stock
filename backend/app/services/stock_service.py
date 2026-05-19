@@ -68,9 +68,6 @@ class StockService:
                 stock_name = self._find_field_by_type(fields, 1, clean_code)
                 code_in_data = self._find_field_by_type(fields, 2, clean_code)
 
-                # Print debug info for new markets
-                if market in ['us', 'hk']:
-                    print(f"Debug {market} {clean_code}: {fields[:10]}")
 
                 # Parse based on market type
                 if market == 'us':
