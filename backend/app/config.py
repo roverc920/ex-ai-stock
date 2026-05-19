@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     DEEPSEEK_API_URL: str = "https://api.deepseek.com"
     DEEPSEEK_MODEL: str = "deepseek-chat"
 
-    # Redis
-    REDIS_URL: str
+    # Redis (optional)
+    REDIS_URL: str = ""
 
     # App
     APP_ENV: str = "development"
