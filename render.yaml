@@ -19,15 +19,12 @@ services:
       - key: DEEPSEEK_API_URL
         value: https://api.deepseek.com
       - key: CORS_ORIGINS
-        fromService:
-          type: static
-          name: stock-analyzer-web
-          property: url
+        value: https://stock-analyzer-web.onrender.com
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: stock-analyzer-web
-    runtime: node
+    runtime: static
     repo: https://github.com/roverc920/ex-ai-stock.git
     rootDir: frontend
     buildCommand: npm install && npm run build
