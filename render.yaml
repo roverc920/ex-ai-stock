@@ -19,10 +19,7 @@ services:
       - key: DEEPSEEK_API_URL
         value: https://api.deepseek.com
       - key: CORS_ORIGINS
-        fromService:
-          name: stock-analyzer-web
-          type: web
-          property: url
+        value: "*"
       - key: REDIS_URL
         value: ""
       - key: APP_ENV
