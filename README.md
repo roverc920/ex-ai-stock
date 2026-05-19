@@ -46,5 +46,13 @@
 
 **现象**：前端调用 API 时浏览器报 CORS 错误。
 
-**解决方案**：确保后端 `CORS_ORIGINS` 环境变量包含前端域名，或使用 `*` 允许所有来源（仅建议开发/测试环境使用）。
+**正确解决方案**：
+1. 访问 Render Dashboard → 后端服务 → Environment
+2. 添加环境变量 `CORS_ORIGINS`，值为前端实际域名，例如：
+   ```
+   https://stock-analyzer-web-8hqf.onrender.com,http://localhost:5173
+   ```
+3. 重新部署服务
+
+**注意**：不要使用 `*`，这会带来安全风险。应该明确指定允许的前端域名。
 

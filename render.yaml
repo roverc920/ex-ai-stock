@@ -19,7 +19,7 @@ services:
       - key: DEEPSEEK_API_URL
         value: https://api.deepseek.com
       - key: CORS_ORIGINS
-        value: "*"
+        sync: false
       - key: REDIS_URL
         value: ""
       - key: APP_ENV
