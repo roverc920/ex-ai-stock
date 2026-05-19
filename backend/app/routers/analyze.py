@@ -1,7 +1,7 @@
 """Stock analysis router."""
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import StockRequest, StockResponse
-from app.services.akshare_service import akshare_service
+from app.services.stock_service import stock_service
 from app.services.llm_service import llm_service
 from app.services.cache_service import cache_service
 from app.services.supabase_service import supabase_service
@@ -21,7 +21,7 @@ async def analyze_stock(request: StockRequest):
             return StockResponse(**cached_analysis)
 
         # Get stock data
-        stock_info = await akshare_service.get_stock_with_name(stock_code)
+        stock_info = await stock_service.get_stock_data(stock_code)
         stock_name = stock_info["name"]
         stock_data = stock_info["data"]
 

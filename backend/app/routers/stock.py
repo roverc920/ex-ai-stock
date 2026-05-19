@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 from app.models.schemas import StockInfoResponse
-from app.services.akshare_service import akshare_service
+from app.services.stock_service import stock_service
 from app.services.cache_service import cache_service
 
 router = APIRouter()
@@ -24,7 +24,7 @@ async def get_stock(stock_code: str):
             )
 
         # Fetch fresh data
-        stock_info = await akshare_service.get_stock_with_name(stock_code)
+        stock_info = await stock_service.get_stock_data(stock_code)
 
         # Cache it
         await cache_service.set_stock(stock_code, stock_info)
