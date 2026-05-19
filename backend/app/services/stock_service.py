@@ -1,23 +1,44 @@
 """Stock data service using Tencent API."""
 import httpx
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.models.schemas import StockData
+from app.services.market_detector import detect_market, build_tencent_api_code, get_market_name
 
 
 class StockService:
     """Service for fetching stock data from Tencent API."""
 
-    def _get_market_prefix(self, stock_code: str) -> str:
-        """Determine market prefix based on stock code."""
-        if stock_code.startswith('6'):
-            return "sh"
-        else:
-            return "sz"
+    def _find_field_by_type(self, fields: list, index: int, default="") -> str:
+        """Safely get field by index with default."""
+        if index < len(fields):
+            return fields[index] if fields[index] else default
+        return default
+
+    def _parse_float(self, value: str, default: float = 0.0) -> float:
+        """Parse float safely, return default if invalid."""
+        if not value or value == '-':
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+
+    def _parse_int(self, value: str, default: int = 0) -> int:
+        """Parse int safely, return default if invalid."""
+        if not value:
+            return default
+        try:
+            return int(float(value))
+        except (ValueError, TypeError):
+            return default
 
     async def get_stock_data(self, stock_code: str) -> Dict[str, Any]:
-        """Get real-time stock data from Tencent API."""
-        market = self._get_market_prefix(stock_code)
-        symbol = f"{market}{stock_code}"
+        """Get real-time stock data from Tencent API - supports multi-market."""
+        # Detect market type
+        market, clean_code = detect_market(stock_code)
+
+        # Build Tencent API symbol
+        symbol = build_tencent_api_code(market, clean_code)
 
         url = f"https://qt.gtimg.cn/q={symbol}"
 
@@ -32,44 +53,90 @@ class StockService:
                     raise ValueError(f"无效的股票代码: {stock_code}")
 
                 # Parse data
-                data_part = content.split('="')[1].strip('"')
+                if '="' in content:
+                    data_part = content.split('="')[1].strip('"').rstrip(';')
+                else:
+                    raise ValueError(f"无效的数据格式: {stock_code}")
+
                 fields = data_part.split('~')
 
-                if len(fields) < 50:
-                    raise ValueError(f"股票数据不完整: {stock_code}")
+                if len(fields) < 10:
+                    raise ValueError(f"股票数据不完整: {stock_code} (字段数: {len(fields)})")
 
-                # Field mapping (verified)
-                # [1] 股票名称, [2] 代码, [3] 当前价, [4] 昨收, [5] 今开
-                # [6] 成交量(手), [32] 涨跌幅%, [33] 最高, [34] 最低
-                # [37] 成交额(万), [38] 换手率, [39] 市盈率
-                # [44] 流通市值(亿), [45] 总市值(亿), [46] 市净率
+                # Different markets have different field layouts
+                # Try to detect and parse accordingly
+                stock_name = self._find_field_by_type(fields, 1, clean_code)
+                code_in_data = self._find_field_by_type(fields, 2, clean_code)
 
-                stock_name = fields[1]
-                current_price = float(fields[3]) if fields[3] else 0.0
-                prev_close = float(fields[4]) if fields[4] else 0.0
-                open_price = float(fields[5]) if fields[5] else 0.0
 
-                # Volume (convert from 手 to shares, 1手=100股)
-                volume_hand = int(fields[6]) if fields[6] else 0
-                volume = volume_hand * 100
+                # Parse based on market type
+                if market == 'us':
+                    # US stocks: v_usAAPL="1~Apple Inc.~AAPL~150.00~...
+                    # Fields: [0]=market, [1]=name, [2]=code, [3]=price, [4]=change, [5]=change%, ...
+                    current_price = self._parse_float(self._find_field_by_type(fields, 3))
+                    # For US stocks, we need to find the right fields
+                    # Try common indices
+                    change_percent = self._parse_float(self._find_field_by_type(fields, 5))  # Often at index 5
+                    prev_close = self._parse_float(self._find_field_by_type(fields, 4))
+                    open_price = current_price  # Default if not found
+                    high_price = current_price
+                    low_price = current_price
 
-                change_percent = float(fields[32]) if fields[32] else 0.0
-                high_price = float(fields[33]) if fields[33] else 0.0
-                low_price = float(fields[34]) if fields[34] else 0.0
+                    # Find volume (usually a large number)
+                    volume = 0
+                    for i in range(6, min(20, len(fields))):
+                        val = self._find_field_by_type(fields, i)
+                        if val.isdigit() and len(val) > 5:
+                            volume = int(val)
+                            break
 
-                # Turnover (fields[37] is in 万)
-                turnover_wan = float(fields[37]) if fields[37] else 0.0
-                turnover = turnover_wan * 10000
+                    # US stocks may not have all fields
+                    pe_ratio = None
+                    pb_ratio = None
+                    market_cap = None
+                    turnover = 0
 
-                # PE ratio
-                pe_ratio = float(fields[39]) if fields[39] and fields[39] != '-' else None
+                elif market == 'hk':
+                    # Hong Kong stocks similar to A-shares but different indices
+                    # Need testing, use safe parsing
+                    current_price = self._parse_float(self._find_field_by_type(fields, 3))
+                    prev_close = self._parse_float(self._find_field_by_type(fields, 4))
+                    open_price = self._parse_float(self._find_field_by_type(fields, 5))
+                    change_percent = self._parse_float(self._find_field_by_type(fields, 32))
+                    high_price = self._parse_float(self._find_field_by_type(fields, 33))
+                    low_price = self._parse_float(self._find_field_by_type(fields, 34))
 
-                # Market cap (fields[45] is in 亿)
-                market_cap_yi = float(fields[45]) if fields[45] else 0.0
-                market_cap = market_cap_yi * 100000000
+                    volume_hand = self._parse_int(self._find_field_by_type(fields, 6))
+                    volume = volume_hand * 100
 
-                # PB ratio
-                pb_ratio = float(fields[46]) if fields[46] and fields[46] != '-' else None
+                    turnover_wan = self._parse_float(self._find_field_by_type(fields, 37))
+                    turnover = turnover_wan * 10000
+
+                    pe_ratio = self._parse_float(self._find_field_by_type(fields, 39)) if fields[39] != '-' else None
+                    pb_ratio = self._parse_float(self._find_field_by_type(fields, 46)) if len(fields) > 46 and fields[46] != '-' else None
+                    market_cap_yi = self._parse_float(self._find_field_by_type(fields, 45))
+                    market_cap = market_cap_yi * 100000000
+
+                else:
+                    # A-shares (sh/sz) - verified field mapping
+                    current_price = self._parse_float(self._find_field_by_type(fields, 3))
+                    prev_close = self._parse_float(self._find_field_by_type(fields, 4))
+                    open_price = self._parse_float(self._find_field_by_type(fields, 5))
+
+                    volume_hand = self._parse_int(self._find_field_by_type(fields, 6))
+                    volume = volume_hand * 100
+
+                    change_percent = self._parse_float(self._find_field_by_type(fields, 32))
+                    high_price = self._parse_float(self._find_field_by_type(fields, 33))
+                    low_price = self._parse_float(self._find_field_by_type(fields, 34))
+
+                    turnover_wan = self._parse_float(self._find_field_by_type(fields, 37))
+                    turnover = turnover_wan * 10000
+
+                    pe_ratio = self._parse_float(self._find_field_by_type(fields, 39)) if len(fields) > 39 and fields[39] != '-' else None
+                    pb_ratio = self._parse_float(self._find_field_by_type(fields, 46)) if len(fields) > 46 and fields[46] != '-' else None
+                    market_cap_yi = self._parse_float(self._find_field_by_type(fields, 45))
+                    market_cap = market_cap_yi * 100000000
 
                 stock_data = StockData(
                     current_price=current_price,
@@ -86,8 +153,10 @@ class StockService:
                 )
 
                 return {
-                    "code": stock_code,
+                    "code": clean_code,
                     "name": stock_name,
+                    "market": market,
+                    "market_name": get_market_name(market),
                     "data": stock_data
                 }
 
